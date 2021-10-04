@@ -1,8 +1,11 @@
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.7.0 <0.9.0;
 
 contract AdExICO {
     
     using SafeMath for uint256;
+    
+    address private owner;
     
     string private constant name = "AdEx";
     string private constant symbol = "ADX";
@@ -17,21 +20,22 @@ contract AdExICO {
     mapping(address => mapping(address => uint256)) private allowances;
     
     //Different token allocations(80% sale, 2% bounty, 2% for discovery, 10% team, 6% advisors)
-    uint256 private tokenSupply = 100;
+    uint256 private tokenSupply = 80000000;
     uint256 private bountySupply = 2000000;
     uint256 private discoverySupply = 2000000;
     uint256 private teamSupply = 10000000;
     uint256 private advisorsSupply = 6000000;
 
     // Allowances for different allocations
-    address[] tokenSupplyAllowance;
-    address[] bountySupplyAllowance;
-    address[] discoverySupplyAllowance;
-    address[] teamSupplyAllowance;
-    address[] advisorsSupplyAllowance;
+    mapping(address => uint256) tokenSupplyAllowance;
+    mapping(address => uint256) bountySupplyAllowance;
+    mapping(address => uint256) discoverySupplyAllowance;
+    mapping(address => uint256) teamSupplyAllowance;
+    mapping(address => uint256) advisorsSupplyAllowance;
 	
     constructor (){
 	    startDate = block.timestamp;
+        owner = msg.sender;
 	}
 	
 	event Transfer(address indexed _from, address indexed _to, uint256 _value);
@@ -47,11 +51,12 @@ contract AdExICO {
 	function getStartData() public view returns (uint256){ return startDate; }
 	function getStartDayEndDayDiff() public pure returns (uint256){ return startDayEndDayDiff; }
 	function ownerWeiBalance() public view returns (uint256) { return address(this).balance; }
-	function ownerEtherBalance() public view returns (uint256) { return address(this).balance.div(10**18); }
+	function ownerEtherBalance() public view returns (uint256) { return address(this).balance.div(10**decimals); }
 	function balanceOf(address _owner) public view returns (uint256){ return balances[_owner]; }
 
 	
 	function transfer(address _to, uint256 _amount) public returns (bool){
+	    require(getDayDifference() >= startDayEndDayDiff);
 		require(_amount <= balances[msg.sender]);
 		balances[msg.sender] = balances[msg.sender].sub(_amount);
 		balances[_to] = balances[_to].add(_amount);
@@ -59,6 +64,7 @@ contract AdExICO {
 		return true;
 	}
 	function transferFrom(address _from, address _to, uint256 _amount) public returns (bool){
+	    require(getDayDifference() >= startDayEndDayDiff);
 		require(_amount <= balances[_from]);
 		require(_amount <= allowances[_from][_to]);
 
@@ -70,6 +76,7 @@ contract AdExICO {
 		return true;
 	}
 	function approve(address _spender, uint256 _amount) public  returns (bool success){
+	    require(getDayDifference() >= startDayEndDayDiff);
 		allowances[msg.sender][_spender] = _amount;
         emit Approval(msg.sender, _spender, _amount);
         return true;
@@ -80,11 +87,12 @@ contract AdExICO {
 	}
   
     function buyADX() public payable returns(bool){
-        require(getDayDifference() < getStartDayEndDayDiff);
-        require(msg.value >= 1);
-        require(hardCap >= msg.value);
+        require(getDayDifference() < startDayEndDayDiff);
+        require(msg.value >= 10**18);
+        require(address(this).balance.div(10**decimals) <= hardCap);
         uint256 receiveTokens = getBonusTokens(convertEthToAdx(msg.value)); 
-        transferTokensFromGenesisBlock(msg.sender, receiveTokens);
+        addTokenSupplyAllowance(msg.sender, receiveTokens);
+        transferFromTokenSupply(msg.sender, receiveTokens);
         return true;
     }
     
@@ -107,14 +115,81 @@ contract AdExICO {
         return _amount.div(10 ** 18).mul(900);
     }
     
-    function transferTokensFromGenesisBlock(address _to, uint256 _amount) private returns (bool){
+    
+    // Functions for adding adress to one of the allowance arrays(Only if msg.sender is owner)
+    function addTokenSupplyAllowance(address _newAddress, uint256 _amount) public returns(bool) {
+        tokenSupplyAllowance[_newAddress] = _amount;
+        return true;
+    }
+    function addBountySupplyAllowance(address _newAddress, uint256 _amount) public returns(bool) {
+        require(msg.sender == owner);
+        bountySupplyAllowance[_newAddress] = _amount;
+        return true;
+    }
+    function addDiscoverySupplyAllowance(address _newAddress, uint256 _amount) public returns(bool) {
+        require(msg.sender == owner);
+        discoverySupplyAllowance[_newAddress] = _amount;
+        return true;
+    }
+    function addTeamSupplyAllowance(address _newAddress, uint256 _amount) public returns(bool) {
+        require(msg.sender == owner);
+        teamSupplyAllowance[_newAddress] = _amount;
+        return true;
+    }
+    function addAdvisorsSupplyAllowance(address _newAddress, uint256 _amount) public returns(bool) {
+        require(msg.sender == owner);
+        advisorsSupplyAllowance[_newAddress] = _amount;
+        return true;
+    }
+    
+    
+    // Spend tokens for different allocations(Only if msg.sender has allowance)
+    function transferFromTokenSupply(address _to, uint256 _amount) private returns (bool){
+        require(tokenSupplyAllowance[_to] >= _amount);
+        require(tokenSupply >= _amount);
         tokenSupply = tokenSupply.sub(_amount);
 		balances[_to] = balances[_to].add(_amount);
+		tokenSupplyAllowance[_to] = tokenSupplyAllowance[_to].sub(_amount);
+		emit Transfer(address(this), _to, _amount);
+		return true;
+    }
+    function transferFromBountySupply(address _to, uint256 _amount) public returns (bool){
+        require(bountySupplyAllowance[_to] >= _amount);
+        require(bountySupply >= _amount);
+        bountySupply = bountySupply.sub(_amount);
+		balances[_to] = balances[_to].add(_amount);
+		bountySupplyAllowance[_to] = bountySupplyAllowance[_to].sub(_amount);
+		emit Transfer(address(this), _to, _amount);
+		return true;
+    }
+    function transferFromDiscoverySupply(address _to, uint256 _amount) public returns (bool){
+        require(discoverySupplyAllowance[_to] >= _amount);
+        require(discoverySupply >= _amount);
+        discoverySupply = discoverySupply.sub(_amount);
+		balances[_to] = balances[_to].add(_amount);
+		discoverySupplyAllowance[_to] = discoverySupplyAllowance[_to].sub(_amount);
+		emit Transfer(address(this), _to, _amount);
+		return true;
+    }
+    function transferFromTeamSupply(address _to, uint256 _amount) public returns (bool){
+        require(teamSupplyAllowance[_to] >= _amount);
+        require(teamSupply >= _amount);
+        teamSupply = teamSupply.sub(_amount);
+		balances[_to] = balances[_to].add(_amount);
+		teamSupplyAllowance[_to] = teamSupplyAllowance[_to].sub(_amount);
+		emit Transfer(address(this), _to, _amount);
+		return true;
+    }
+    function transferFromAdvisorsSupply(address _to, uint256 _amount) public returns (bool){
+        require(advisorsSupplyAllowance[_to] >= _amount);
+        require(advisorsSupply >= _amount);
+        advisorsSupply = advisorsSupply.sub(_amount);
+		balances[_to] = balances[_to].add(_amount);
+		advisorsSupplyAllowance[_to] = advisorsSupplyAllowance[_to].sub(_amount);
 		emit Transfer(address(this), _to, _amount);
 		return true;
     }
     
-    // After fundraise end we have to approve all token holders.
 }
 
 
