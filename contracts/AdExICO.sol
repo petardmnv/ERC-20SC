@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity >=0.7.0 <0.9.0;
+pragma solidity >=0.4.22 <0.9.0;
 
 contract AdExICO {
     
@@ -10,7 +10,7 @@ contract AdExICO {
     string private constant name = "AdEx";
     string private constant symbol = "ADX";
 	
-	uint8 private constant decimals = 18;
+	uint private constant decimals = 18;
     uint256 private constant totalSupply = 100000000;
     uint256 private constant hardCap = 40000;
     uint256 private startDate;
@@ -33,7 +33,7 @@ contract AdExICO {
     mapping(address => uint256) teamSupplyAllowance;
     mapping(address => uint256) advisorsSupplyAllowance;
 	
-    constructor (){
+    constructor () public{
 	    startDate = block.timestamp;
         owner = msg.sender;
 	}
@@ -44,7 +44,7 @@ contract AdExICO {
 
 	function getName() public pure returns (string memory){ return name; }
 	function getSymbol() public pure returns (string memory){ return symbol; }
-	function getDecimals() public pure returns (uint8){ return decimals; }
+	function getDecimals() public pure returns (uint){ return decimals; }
 	function getTotalSupply() public pure returns (uint256){ return totalSupply; }
 	function getHardCap() public pure returns (uint256){ return hardCap; }
 	function getCurrentTime() public view returns (uint256){ return block.timestamp; }
@@ -53,7 +53,7 @@ contract AdExICO {
 	function ownerWeiBalance() public view returns (uint256) { return address(this).balance; }
 	function ownerEtherBalance() public view returns (uint256) { return address(this).balance.div(10**decimals); }
 	function balanceOf(address _owner) public view returns (uint256){ return balances[_owner]; }
-
+	
 	
 	function transfer(address _to, uint256 _amount) public returns (bool){
 	    require(getDayDifference() >= startDayEndDayDiff);
