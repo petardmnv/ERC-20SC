@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.4.22 <0.9.0;
+import {SafeMath} from "./SafeMath.sol";
 
 contract AdExICO {
     
@@ -33,7 +34,7 @@ contract AdExICO {
     mapping(address => uint256) teamSupplyAllowance;
     mapping(address => uint256) advisorsSupplyAllowance;
 	
-    constructor () public{
+    constructor (){
 	    startDate = block.timestamp;
         owner = msg.sender;
 	}
@@ -41,6 +42,16 @@ contract AdExICO {
 	event Transfer(address indexed _from, address indexed _to, uint256 _value);
 	event Approval(address indexed _owner, address indexed _spender, uint256 _value);
 	event FundraiseEnd(uint256 _collectedETH);
+
+    modifier ownable() {
+        require(owner == msg.sender);
+        _;
+    }
+
+    modifier daylimit(){
+        require(getDayDifference() >= startDayEndDayDiff);
+        _;
+    }
 
 	function getName() public pure returns (string memory){ return name; }
 	function getSymbol() public pure returns (string memory){ return symbol; }
@@ -55,16 +66,14 @@ contract AdExICO {
 	function balanceOf(address _owner) public view returns (uint256){ return balances[_owner]; }
 	
 	
-	function transfer(address _to, uint256 _amount) public returns (bool){
-	    require(getDayDifference() >= startDayEndDayDiff);
+	function transfer(address _to, uint256 _amount) public daylimit returns (bool){
 		require(_amount <= balances[msg.sender]);
 		balances[msg.sender] = balances[msg.sender].sub(_amount);
 		balances[_to] = balances[_to].add(_amount);
 		emit Transfer(msg.sender, _to, _amount);
 		return true;
 	}
-	function transferFrom(address _from, address _to, uint256 _amount) public returns (bool){
-	    require(getDayDifference() >= startDayEndDayDiff);
+	function transferFrom(address _from, address _to, uint256 _amount) public daylimit returns (bool){
 		require(_amount <= balances[_from]);
 		require(_amount <= allowances[_from][_to]);
 
@@ -75,8 +84,7 @@ contract AdExICO {
 		emit Transfer(_from, _to, _amount);
 		return true;
 	}
-	function approve(address _spender, uint256 _amount) public  returns (bool success){
-	    require(getDayDifference() >= startDayEndDayDiff);
+	function approve(address _spender, uint256 _amount) public daylimit returns (bool success){
 		allowances[msg.sender][_spender] = _amount;
         emit Approval(msg.sender, _spender, _amount);
         return true;
@@ -86,8 +94,7 @@ contract AdExICO {
 		return allowances[_owner][_spender]; 
 	}
   
-    function buyADX() public payable returns(bool){
-        require(getDayDifference() < startDayEndDayDiff);
+    function buyADX() public payable daylimit returns(bool){
         require(msg.value >= 10**18);
         require(address(this).balance.div(10**decimals) <= hardCap);
         uint256 receiveTokens = getBonusTokens(convertEthToAdx(msg.value)); 
@@ -121,23 +128,19 @@ contract AdExICO {
         tokenSupplyAllowance[_newAddress] = _amount;
         return true;
     }
-    function addBountySupplyAllowance(address _newAddress, uint256 _amount) public returns(bool) {
-        require(msg.sender == owner);
+    function addBountySupplyAllowance(address _newAddress, uint256 _amount) public ownable returns(bool) {
         bountySupplyAllowance[_newAddress] = _amount;
         return true;
     }
-    function addDiscoverySupplyAllowance(address _newAddress, uint256 _amount) public returns(bool) {
-        require(msg.sender == owner);
+    function addDiscoverySupplyAllowance(address _newAddress, uint256 _amount) public ownable returns(bool) {
         discoverySupplyAllowance[_newAddress] = _amount;
         return true;
     }
-    function addTeamSupplyAllowance(address _newAddress, uint256 _amount) public returns(bool) {
-        require(msg.sender == owner);
+    function addTeamSupplyAllowance(address _newAddress, uint256 _amount) public ownable returns(bool) {
         teamSupplyAllowance[_newAddress] = _amount;
         return true;
     }
-    function addAdvisorsSupplyAllowance(address _newAddress, uint256 _amount) public returns(bool) {
-        require(msg.sender == owner);
+    function addAdvisorsSupplyAllowance(address _newAddress, uint256 _amount) public ownable returns(bool) {
         advisorsSupplyAllowance[_newAddress] = _amount;
         return true;
     }
@@ -153,7 +156,7 @@ contract AdExICO {
 		emit Transfer(address(this), _to, _amount);
 		return true;
     }
-    function transferFromBountySupply(address _to, uint256 _amount) public returns (bool){
+    function transferFromBountySupply(address _to, uint256 _amount) public daylimit returns (bool){
         require(bountySupplyAllowance[_to] >= _amount);
         require(bountySupply >= _amount);
         bountySupply = bountySupply.sub(_amount);
@@ -162,7 +165,7 @@ contract AdExICO {
 		emit Transfer(address(this), _to, _amount);
 		return true;
     }
-    function transferFromDiscoverySupply(address _to, uint256 _amount) public returns (bool){
+    function transferFromDiscoverySupply(address _to, uint256 _amount) public daylimit returns (bool){
         require(discoverySupplyAllowance[_to] >= _amount);
         require(discoverySupply >= _amount);
         discoverySupply = discoverySupply.sub(_amount);
@@ -171,7 +174,7 @@ contract AdExICO {
 		emit Transfer(address(this), _to, _amount);
 		return true;
     }
-    function transferFromTeamSupply(address _to, uint256 _amount) public returns (bool){
+    function transferFromTeamSupply(address _to, uint256 _amount) public daylimit returns (bool){
         require(teamSupplyAllowance[_to] >= _amount);
         require(teamSupply >= _amount);
         teamSupply = teamSupply.sub(_amount);
@@ -180,7 +183,7 @@ contract AdExICO {
 		emit Transfer(address(this), _to, _amount);
 		return true;
     }
-    function transferFromAdvisorsSupply(address _to, uint256 _amount) public returns (bool){
+    function transferFromAdvisorsSupply(address _to, uint256 _amount) public daylimit returns (bool){
         require(advisorsSupplyAllowance[_to] >= _amount);
         require(advisorsSupply >= _amount);
         advisorsSupply = advisorsSupply.sub(_amount);
@@ -190,25 +193,4 @@ contract AdExICO {
 		return true;
     }
     
-}
-
-
-library SafeMath{
-    function add(uint a, uint b) public pure returns (uint c) {
-        c = a + b;
-        require(c >= a);
-    }
-    function sub(uint a, uint b) public pure returns (uint c) {
-        require(b <= a);
-        c = a - b;
-    }
-    function mul(uint a, uint b) public pure returns (uint c ) {
-        c = a * b; 
-        require(a == 0 || c / a == b);
-    } 
-    function div(uint a, uint b) public pure returns (uint c ) {
-        require(b > 0);
-        c = a / b;
-    
-    }
 }
