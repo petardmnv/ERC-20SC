@@ -192,5 +192,4 @@ contract AdExICO {
 		emit Transfer(address(this), _to, _amount);
 		return true;
     }
-    
 }
