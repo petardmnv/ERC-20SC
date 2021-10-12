@@ -1,7 +1,7 @@
 const AdExICO = artifacts.require("AdExICO");
-
+const BigNumber = require('bignumber.js');
 //Test if contract is deployed properly
-contract("AdExICO", () => {
+contract("AdExICO", accounts => {
     let newAdExICO = null;
     before(async() => {
         newAdExICO = await AdExICO.deployed();
@@ -36,4 +36,48 @@ contract("AdExICO", () => {
         assert(getStartDayEndDayDiff.toNumber() === 30);
     });
 
+    it("Should get start day when calling getStartDAte.", async() => {
+        var getStartDate = await newAdExICO.getStartDate();
+        console.log(getStartDate);
+        assert(getStartDate.toNumber() > 0);
+    });
+
+    it("Should buy AdEx tokens using ETH.", async() => {
+        const instance = await AdExICO.deployed();
+        const tokenBuyer = accounts[3];
+        const meta = instance;
+
+        let balance = await instance.ownerEtherBalance();
+        const balanceOfContractAddress = balance.toNumber();
+        balance = await instance.balanceOf(tokenBuyer);
+        let balanceOfTokenBuyer = balance.toNumber();
+
+        console.log(balanceOfContractAddress);
+        console.log(tokenBuyer);
+        console.log(balanceOfTokenBuyer);
+
+        const amount = 2;
+        await instance.buyADX({
+            from: tokenBuyer,
+            value: web3.utils.toWei(amount.toString(), "ether")
+        });
+
+        balance = await instance.ownerEtherBalance();
+        const newBalanceOfContractAddress = balance.toNumber();
+        console.log(newBalanceOfContractAddress);
+        assert((balanceOfContractAddress + amount) === newBalanceOfContractAddress, "ETH wasn't correctly sent to the contract address");
+
+        balance = await instance.balanceOf(tokenBuyer);
+        balanceOfTokenBuyer = balance.toNumber();
+        let tokensEarned = (amount * 900) * 130 / 100;
+        assert.equal(tokensEarned, balanceOfTokenBuyer, "Amount wasn't correctly sent to the receiver");
+    });
+
+    it("Should calculate token bonus by given token amount", async() => {
+        const instance = await AdExICO.deployed();
+        const amount = 1000;
+        let tokenBonus = await instance.getBonusTokens(amount);
+        console.log(tokenBonus);
+        assert.equal(tokenBonus.toNumber(), 1300, "Bonus should be amount * 130 /100");
+    });
 });
