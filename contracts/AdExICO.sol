@@ -59,7 +59,7 @@ contract AdExICO {
 	function getTotalSupply() public pure returns (uint256){ return totalSupply; }
 	function getHardCap() public pure returns (uint256){ return hardCap; }
 	function getCurrentTime() public view returns (uint256){ return block.timestamp; }
-	function getStartData() public view returns (uint256){ return startDate; }
+	function getStartDate() public view returns (uint256){ return startDate; }
 	function getStartDayEndDayDiff() public pure returns (uint256){ return startDayEndDayDiff; }
 	function ownerWeiBalance() public view returns (uint256) { return address(this).balance; }
 	function ownerEtherBalance() public view returns (uint256) { return address(this).balance.div(10**decimals); }
@@ -94,7 +94,7 @@ contract AdExICO {
 		return allowances[_owner][_spender]; 
 	}
   
-    function buyADX() public payable daylimit returns(bool){
+    function buyADX() public payable returns(bool){
         require(msg.value >= 10**18);
         require(address(this).balance.div(10**decimals) <= hardCap);
         uint256 receiveTokens = getBonusTokens(convertEthToAdx(msg.value)); 
